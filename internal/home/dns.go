@@ -235,7 +235,7 @@ func newServerConfig(
 
 	fwdConf := dnsConf.Config
 	fwdConf.FilterHandler = applyAdditionalFiltering
-	fwdConf.ClientsContainer = &Context.clients
+	fwdConf.ClientsContainer = Context.clients.storage
 
 	newConf = &dnsforward.ServerConfig{
 		UDPListenAddrs:         ipsToUDPAddrs(hosts, dnsConf.Port),

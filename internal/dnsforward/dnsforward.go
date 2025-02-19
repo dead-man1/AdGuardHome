@@ -185,6 +185,8 @@ type Server struct {
 	// conf is the current configuration of the server.
 	conf ServerConfig
 
+	latestUpstreamConfUpdate time.Time
+
 	// serverLock protects Server.
 	serverLock sync.RWMutex
 }
@@ -557,6 +559,8 @@ func (s *Server) prepareUpstreamSettings(boot upstream.Resolver) (err error) {
 	}
 
 	s.conf.UpstreamConfig = uc
+
+	s.latestUpstreamConfUpdate = time.Now()
 
 	return nil
 }

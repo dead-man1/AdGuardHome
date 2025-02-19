@@ -13,6 +13,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/arpdb"
 	"github.com/AdguardTeam/AdGuardHome/internal/dhcpsvc"
 	"github.com/AdguardTeam/AdGuardHome/internal/whois"
+	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/hostsfile"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
@@ -126,6 +127,8 @@ type Storage struct {
 	// runtimeIndex contains information about runtime clients.
 	runtimeIndex *runtimeIndex
 
+	upstreamManager *upstreamManager
+
 	// dhcp is used to update [SourceDHCP] runtime client information.
 	dhcp DHCP
 
@@ -163,6 +166,7 @@ func NewStorage(ctx context.Context, conf *StorageConfig) (s *Storage, err error
 		mu:                     &sync.Mutex{},
 		index:                  newIndex(),
 		runtimeIndex:           newRuntimeIndex(),
+		upstreamManager:        newUpstreamManager(),
 		dhcp:                   conf.DHCP,
 		etcHosts:               conf.EtcHosts,
 		arpDB:                  conf.ARPDB,
@@ -625,4 +629,39 @@ func (s *Storage) RangeRuntime(f func(rc *Runtime) (cont bool)) {
 // modified.
 func (s *Storage) AllowedTags() (tags []string) {
 	return s.allowedTags
+}
+
+func (s *Storage) UpstreamConfigByID(ids []string) (prxConf *proxy.CustomUpstreamConfig) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var c *Persistent
+	var ok bool
+
+	for _, id := range ids {
+		c, ok = s.index.find(id)
+		if ok {
+			break
+		}
+	}
+
+	if !ok {
+		return nil
+	}
+
+	return s.upstreamManager.customUpstreamConfig(c)
+}
+
+func (s *Storage) LatestUpstreamConfigUpdate() (t time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.upstreamManager.latestConfigUpdate()
+}
+
+func (s *Storage) UpdateUpstreamConfig(conf *UpstreamConfig) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.upstreamManager.updateConfig(conf)
 }
