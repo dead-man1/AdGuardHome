@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghalg"
-	"github.com/AdguardTeam/golibs/errors"
 )
 
 // macKey contains MAC as byte array of 6, 8, or 20 bytes.
@@ -208,16 +207,16 @@ func (ci *index) clashesMAC(c *Persistent) (p *Persistent, mac net.HardwareAddr)
 // find finds persistent client by string representation of the client ID, IP
 // address, or MAC.
 func (ci *index) find(id string) (c *Persistent, ok bool) {
-	uid, found := ci.clientIDToUID[id]
-	if found {
-		return ci.uidToClient[uid], true
+	c, ok = ci.findByClientID(id)
+	if ok {
+		return c, true
 	}
 
 	ip, err := netip.ParseAddr(id)
 	if err == nil {
 		// MAC addresses can be successfully parsed as IP addresses.
-		c, found = ci.findByIP(ip)
-		if found {
+		c, ok = ci.findByIP(ip)
+		if ok {
 			return c, true
 		}
 	}
@@ -225,6 +224,16 @@ func (ci *index) find(id string) (c *Persistent, ok bool) {
 	mac, err := net.ParseMAC(id)
 	if err == nil {
 		return ci.findByMAC(mac)
+	}
+
+	return nil, false
+}
+
+// findByClientID finds persistent client by client ID.
+func (ci *index) findByClientID(clientID string) (c *Persistent, ok bool) {
+	uid, ok := ci.clientIDToUID[clientID]
+	if ok {
+		return ci.uidToClient[uid], true
 	}
 
 	return nil, false
@@ -342,19 +351,4 @@ func (ci *index) rangeByName(f func(c *Persistent) (cont bool)) {
 			break
 		}
 	}
-}
-
-// closeUpstreams closes upstream configurations of persistent clients.
-func (ci *index) closeUpstreams() (err error) {
-	var errs []error
-	ci.rangeByName(func(c *Persistent) (cont bool) {
-		err = c.CloseUpstreams()
-		if err != nil {
-			errs = append(errs, err)
-		}
-
-		return true
-	})
-
-	return errors.Join(errs...)
 }

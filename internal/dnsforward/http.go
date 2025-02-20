@@ -673,6 +673,8 @@ func (s *Server) handleTestUpstreamDNS(w http.ResponseWriter, r *http.Request) {
 // handleCacheClear is the handler for the POST /control/cache_clear HTTP API.
 func (s *Server) handleCacheClear(w http.ResponseWriter, _ *http.Request) {
 	s.dnsProxy.ClearCache()
+	s.conf.ClientsContainer.ClearUpstreamCache()
+
 	_, _ = io.WriteString(w, "OK")
 }
 

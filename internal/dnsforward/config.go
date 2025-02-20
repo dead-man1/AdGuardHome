@@ -31,16 +31,17 @@ import (
 
 // ClientsContainer provides information about preconfigured DNS clients.
 type ClientsContainer interface {
-	// UpstreamConfigByID returns the custom upstream configuration for the
-	// client having id, using boot to initialize the one if necessary.  It
-	// returns nil if there is no custom upstream configuration for the client.
-	// The id is expected to be either a string representation of an IP address
-	// or the ClientID.
-	UpstreamConfigByID(ids []string) (conf *proxy.CustomUpstreamConfig)
+	// CustomUpstreamConfig returns the custom client upstream configuration, if
+	// any.  It prioritizes client ID over client IP address to identify the
+	// client.
+	CustomUpstreamConfig(clientID string, cliAddr netip.Addr) (conf *proxy.CustomUpstreamConfig)
 
-	LatestUpstreamConfigUpdate() (t time.Time)
+	// UpdateCommonUpstreamConfig updates the common upstream configuration.
+	UpdateCommonUpstreamConfig(conf *client.CommonUpstreamConfig)
 
-	UpdateUpstreamConfig(conf *client.UpstreamConfig)
+	// ClearUpstreamCache clears the upstream cache for each stored custom
+	// client upstream configuration.
+	ClearUpstreamCache()
 }
 
 // Config represents the DNS filtering configuration of AdGuard Home.  The zero

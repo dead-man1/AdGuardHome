@@ -1,6 +1,7 @@
 package dnsforward
 
 import (
+	"cmp"
 	"context"
 	"encoding/binary"
 	"net"
@@ -8,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AdguardTeam/AdGuardHome/internal/client"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/AdguardTeam/golibs/log"
@@ -577,32 +577,11 @@ func (s *Server) setCustomUpstream(pctx *proxy.DNSContext, clientID string) {
 		return
 	}
 
-	func() {
-		t := s.conf.ClientsContainer.LatestUpstreamConfigUpdate()
-
-		s.serverLock.RLock()
-		defer s.serverLock.RUnlock()
-
-		if t == s.latestUpstreamConfUpdate {
-			return
-		}
-
-		s.conf.ClientsContainer.UpdateUpstreamConfig(&client.UpstreamConfig{
-			Bootstrap:                s.bootstrap,
-			LatestUpstreamConfUpdate: s.latestUpstreamConfUpdate,
-			UpstreamTimeout:          s.conf.UpstreamTimeout,
-			BootstrapPreferIPv6:      s.conf.BootstrapPreferIPv6,
-			EDNSClientSubnetEnabled:  s.conf.EDNSClientSubnet.Enabled,
-			UseHTTP3Upstreams:        s.conf.UseHTTP3Upstreams,
-		})
-	}()
-
-	// Use the ClientID first, since it has a higher priority.
-	ids := []string{clientID, pctx.Addr.Addr().String()}
-	upsConf := s.conf.ClientsContainer.UpstreamConfigByID(ids)
-
+	cliAddr := pctx.Addr.Addr()
+	upsConf := s.conf.ClientsContainer.CustomUpstreamConfig(clientID, cliAddr)
 	if upsConf != nil {
-		log.Debug("dnsforward: using custom upstreams for client %s", ids)
+		cli := cmp.Or(clientID, cliAddr.String())
+		log.Debug("dnsforward: using custom upstreams for client %s", cli)
 
 		pctx.CustomUpstreamConfig = upsConf
 	}

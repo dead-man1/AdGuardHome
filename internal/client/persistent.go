@@ -58,12 +58,6 @@ func (uid *UID) UnmarshalText(data []byte) error {
 
 // Persistent contains information about persistent clients.
 type Persistent struct {
-	// UpstreamConfig is the custom upstream configuration for this client.  If
-	// it's nil, it has not been initialized yet.  If it's non-nil and empty,
-	// there are no valid upstreams.  If it's non-nil and non-empty, these
-	// upstream must be used.
-	UpstreamConfig *proxy.CustomUpstreamConfig
-
 	// SafeSearch handles search engine hosts rewrites.
 	SafeSearch filtering.SafeSearch
 
@@ -311,15 +305,4 @@ func (c *Persistent) ShallowClone() (clone *Persistent) {
 	clone.ClientIDs = slices.Clone(c.ClientIDs)
 
 	return clone
-}
-
-// CloseUpstreams closes the client-specific upstream config of c if any.
-func (c *Persistent) CloseUpstreams() (err error) {
-	if c.UpstreamConfig != nil {
-		if err = c.UpstreamConfig.Close(); err != nil {
-			return fmt.Errorf("closing upstreams of client %q: %w", c.Name, err)
-		}
-	}
-
-	return nil
 }

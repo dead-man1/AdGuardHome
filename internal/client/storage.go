@@ -127,6 +127,7 @@ type Storage struct {
 	// runtimeIndex contains information about runtime clients.
 	runtimeIndex *runtimeIndex
 
+	// upstreamManager stores and updates custom client upstream configurations.
 	upstreamManager *upstreamManager
 
 	// dhcp is used to update [SourceDHCP] runtime client information.
@@ -204,7 +205,7 @@ func (s *Storage) Start(ctx context.Context) (err error) {
 func (s *Storage) Shutdown(_ context.Context) (err error) {
 	close(s.done)
 
-	return s.closeUpstreams()
+	return s.upstreamManager.close()
 }
 
 // periodicARPUpdate periodically reloads runtime clients from ARP.  It is
@@ -518,11 +519,12 @@ func (s *Storage) RemoveByName(ctx context.Context, name string) (ok bool) {
 		return false
 	}
 
-	if err := p.CloseUpstreams(); err != nil {
-		s.logger.ErrorContext(ctx, "removing client", "name", p.Name, slogutil.KeyError, err)
-	}
-
 	s.index.remove(p)
+
+	err := s.upstreamManager.remove(p)
+	if err != nil {
+		s.logger.DebugContext(ctx, "closing client upstreams", "name", name, slogutil.KeyError, err)
+	}
 
 	return true
 }
@@ -580,14 +582,6 @@ func (s *Storage) Size() (n int) {
 	return s.index.size()
 }
 
-// closeUpstreams closes upstream configurations of persistent clients.
-func (s *Storage) closeUpstreams() (err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.index.closeUpstreams()
-}
-
 // ClientRuntime returns a copy of the saved runtime client by ip.  If no such
 // client exists, returns nil.
 func (s *Storage) ClientRuntime(ip netip.Addr) (rc *Runtime) {
@@ -631,18 +625,18 @@ func (s *Storage) AllowedTags() (tags []string) {
 	return s.allowedTags
 }
 
-func (s *Storage) UpstreamConfigByID(ids []string) (prxConf *proxy.CustomUpstreamConfig) {
+// CustomUpstreamConfig implements the [dnsforward.ClientsContainer] interface
+// for *Storage
+func (s *Storage) CustomUpstreamConfig(
+	id string,
+	addr netip.Addr,
+) (prxConf *proxy.CustomUpstreamConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var c *Persistent
-	var ok bool
-
-	for _, id := range ids {
-		c, ok = s.index.find(id)
-		if ok {
-			break
-		}
+	c, ok := s.index.findByClientID(id)
+	if !ok {
+		c, ok = s.index.findByIP(addr)
 	}
 
 	if !ok {
@@ -652,16 +646,17 @@ func (s *Storage) UpstreamConfigByID(ids []string) (prxConf *proxy.CustomUpstrea
 	return s.upstreamManager.customUpstreamConfig(c)
 }
 
-func (s *Storage) LatestUpstreamConfigUpdate() (t time.Time) {
+// UpdateCommonUpstreamConfig implements the [dnsforward.ClientsContainer]
+// interface for *Storage
+func (s *Storage) UpdateCommonUpstreamConfig(conf *CommonUpstreamConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.upstreamManager.latestConfigUpdate()
+	s.upstreamManager.updateCommonUpstreamConfig(conf)
 }
 
-func (s *Storage) UpdateUpstreamConfig(conf *UpstreamConfig) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.upstreamManager.updateConfig(conf)
+// ClearUpstreamCache implements the [dnsforward.ClientsContainer] interface for
+// *Storage
+func (s *Storage) ClearUpstreamCache() {
+	s.upstreamManager.clearUpstreamCache()
 }

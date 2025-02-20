@@ -13,6 +13,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/client"
 	"github.com/AdguardTeam/AdGuardHome/internal/dhcpd"
 	"github.com/AdguardTeam/AdGuardHome/internal/dhcpsvc"
+	"github.com/AdguardTeam/AdGuardHome/internal/dnsforward"
 	"github.com/AdguardTeam/AdGuardHome/internal/whois"
 	"github.com/AdguardTeam/golibs/hostsfile"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
@@ -33,6 +34,9 @@ func newTestStorage(tb testing.TB) (s *client.Storage) {
 
 	return s
 }
+
+// type check
+var _ dnsforward.ClientsContainer = (*client.Storage)(nil)
 
 // testHostsContainer is a mock implementation of the [client.HostsContainer]
 // interface.

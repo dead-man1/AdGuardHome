@@ -1,7 +1,6 @@
 package home
 
 import (
-	"net"
 	"net/netip"
 	"testing"
 
@@ -38,6 +37,7 @@ func newClientsContainer(t *testing.T) (c *clientsContainer) {
 	return c
 }
 
+// TODO(s.chzhen): !! Move to client package.
 func TestClientsCustomUpstream(t *testing.T) {
 	clients := newClientsContainer(t)
 	ctx := testutil.ContextWithTimeout(t, testTimeout)
@@ -54,11 +54,11 @@ func TestClientsCustomUpstream(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	upsConf, err := clients.UpstreamConfigByID("1.2.3.4", net.DefaultResolver)
-	assert.Nil(t, upsConf)
-	assert.NoError(t, err)
+	clients.storage.UpdateCommonUpstreamConfig(&client.CommonUpstreamConfig{})
 
-	upsConf, err = clients.UpstreamConfigByID("1.1.1.1", net.DefaultResolver)
+	upsConf := clients.storage.CustomUpstreamConfig("", netip.MustParseAddr("1.2.3.4"))
+	assert.Nil(t, upsConf)
+
+	upsConf = clients.storage.CustomUpstreamConfig("", netip.MustParseAddr("1.1.1.1"))
 	require.NotNil(t, upsConf)
-	assert.NoError(t, err)
 }
